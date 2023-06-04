@@ -1,0 +1,8 @@
+{
+  "name": "simple-blacklist",
+  "displayName": "Simple Blacklist",
+  "author": "ZetaMap",
+  "main": "Main",
+  "description": "Allows to prohibit nicknames from the blacklist, all nicknames containing one from the list will be banned or kicked",
+  "version": "1.0"
+}
