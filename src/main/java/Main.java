@@ -216,7 +216,6 @@ public class Main extends mindustry.mod.Plugin {
           if (args.length == 2) {
             if (blacklist.containsKey(args[1])) {
               blacklist.remove(args[1]);
-              compiledRegex.remove(args[1]);
               saveSettings();
               Log.info("Nickname removed from blacklist");
             
@@ -252,6 +251,7 @@ public class Main extends mindustry.mod.Plugin {
           if (args.length == 2) {
             if (regexBlacklist.containsKey(args[1])) {
               regexBlacklist.remove(args[1]);
+              compiledRegex.remove(args[1]);
               saveSettings();
               Log.info("Regex removed from blacklist");
             
