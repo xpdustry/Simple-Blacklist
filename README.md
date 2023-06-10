@@ -16,7 +16,7 @@ Open an issue if you have a suggestion.
 Prebuild relases can be found [here](https://github.com/Xpdustry/Simple-Blacklist/releases)
 
 ### Building a Jar 
-You have just run command ``./gradlew :build`` or execute script ``build.bat`` and the plugin will compile automatically.
+You have just run command ``./gradlew :build`` or execute script ``build.bat`` (for Windows) or ``build.sh`` (for Linux) and the plugin will compile automatically.
 
 ### Installing
 Simply place the output jar from the step above in your server's `config/mods` directory and restart the server.
