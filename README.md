@@ -1,8 +1,10 @@
 # Simple Blacklist
 Just a simple blacklist with some added features to customise it, like working mode,  kick message or priority of listener.
 
-A pretty good feature is the listener priority of blacklist: if set to 'first', it's working before all verifications of client, 
-so it can avoid creating empty accounts or interfere with other listeners
+A pretty good feature is the listener priority of blacklist: if set to 'first', it's working before all verifications of client, so it can avoid creating empty accounts or interfere with other listeners
+
+**Also this can allow a blacklist of regex. If a nickname matches with one regex of list, it's also kicked.<br>
+This is very useful for servers that suffer raids with different nicknames each time.**
 
 To control the blacklist, is very simple. Just use the command 'blacklist'. <br>
 And to see usage of command, use 'blacklist help'.
