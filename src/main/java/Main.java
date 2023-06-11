@@ -108,7 +108,7 @@ public class Main extends mindustry.mod.Plugin {
     for (ObjectMap.Entry<String, Integer> b : regexBlacklist) {
       if (compiledRegex.get(b.key).matcher(Strings.normalise(name)).matches()) {
         regexBlacklist.put(b.key, b.value+1);
-        Core.settings.putJson("simple-regexlist", regexBlacklist);
+        Core.settings.putJson("simple-blacklist-regexlist", regexBlacklist);
         
         return true;
       }
