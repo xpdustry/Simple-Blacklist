@@ -1,7 +1,5 @@
 import java.util.regex.Pattern;
 
-import javax.swing.text.AbstractDocument.BranchElement;
-
 import arc.Core;
 import arc.Events;
 import arc.func.Cons;
