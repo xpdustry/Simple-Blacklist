@@ -1,3 +1,7 @@
+1.3:
+  - Fixed bug when kick player, is not realy kicked (verifications continue after kick)
+  - Added a prevention of multiple connection of a client
+
 1.2:
   - Fixed bug with count of regex not saving
   - Fixed bug with regex don't removing to list (without restart)

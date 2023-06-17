@@ -50,7 +50,18 @@ public class Main extends mindustry.mod.Plugin {
 
     // Blacklist listener
     Cons<EventType.ConnectPacketEvent> listener = e -> {
+      // Just for visual in console
       e.connection.uuid = e.packet.uuid;
+
+      // Handle case of multiple connection of client
+      if (e.connection.hasBegunConnecting) {
+          e.connection.kick(KickReason.idInUse, 0);
+          return;
+      }
+
+      // Avoid to continue verification by server if client is kicked
+      e.connection.hasBegunConnecting = true;
+
       // Redo the verification of customers in a more logical way with a kick time of 0s to avoid creation of an empty account.
       // This avoids filling the backup with empty accounts if the server suffered a raid
 
@@ -97,7 +108,8 @@ public class Main extends mindustry.mod.Plugin {
           }
 
           e.connection.kick(message, 0);
-        }
+        
+        } else e.connection.hasBegunConnecting = false; // client is valid so don't forgot to re-set this at default value
       }
     };
 
