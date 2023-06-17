@@ -60,4 +60,30 @@ public class Strings extends arc.util.Strings {
   public static String normalise(String str) {
     return stripColors(stripGlyphs(str));
   }
+
+  public static int binary2integer(boolean... list) {
+    int out = 0;
+
+    for (int i=0; i<list.length; i++) {
+      out |= list[i] ? 1 : 0;
+      out <<= 1;
+    }
+
+    return out >> 1;
+  }
+
+  public static boolean[] integer2binary(int number) {
+    // Check value because 0 have a negative size  
+    if (number == 0) return new boolean[]{false};
+      
+    int size = (int) (Math.log(number)/Math.log(2)+1);
+    boolean[] out = new boolean[size];
+    
+    while (size-- > 0) {
+      out[size] = (number & 1) != 0;
+      number >>= 1;
+    }
+
+    return out;
+  }
 }

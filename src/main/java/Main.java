@@ -1,5 +1,7 @@
 import java.util.regex.Pattern;
 
+import javax.swing.text.AbstractDocument.BranchElement;
+
 import arc.Core;
 import arc.Events;
 import arc.func.Cons;
@@ -8,7 +10,9 @@ import arc.struct.Seq;
 import arc.util.Log;
 
 import mindustry.Vars;
+import mindustry.core.Version;
 import mindustry.game.EventType;
+import mindustry.net.Packets.KickReason;
 
 
 public class Main extends mindustry.mod.Plugin {
@@ -20,49 +24,101 @@ public class Main extends mindustry.mod.Plugin {
                   listenerPriority = true, // Priority of blacklist listener, true to put listener as first for this event
                   regexPriority = false,
                   enabled = true,
-                  regexEnabled = true;
+                  regexEnabled = true,
+                  ignoreAdmins = false;
 
   @SuppressWarnings("unchecked")
   public Main() {
     if (Core.settings.has("simple-blacklist")) blacklist = Core.settings.getJson("simple-blacklist", ObjectMap.class, ObjectMap::new);
     if (Core.settings.has("simple-blacklist-regexlist")) regexBlacklist = Core.settings.getJson("simple-blacklist-regexlist", ObjectMap.class, ObjectMap::new);
     if (Core.settings.has("simple-blacklist-message")) message = Core.settings.getString("simple-blacklist-message");
-    if (Core.settings.has("simple-blacklist-mode")) mode = Core.settings.getBool("simple-blacklist-mode");
-    if (Core.settings.has("simple-blacklist-priority")) listenerPriority = Core.settings.getBool("simple-blacklist-priority");
-    if (Core.settings.has("simple-blacklist-regex")) regexPriority = Core.settings.getBool("simple-blacklist-regex");
-    if (Core.settings.has("simple-blacklist-enabled")) enabled = Core.settings.getBool("simple-blacklist-enabled");
-    if (Core.settings.has("simple-blacklist-regex-enabled")) regexEnabled = Core.settings.getBool("simple-blacklist-regex-enabled");
+    if (Core.settings.has("simple-blacklist-settings")) {
+      boolean[] settings = Strings.integer2binary(Core.settings.getInt("simple-blacklist-settings"));
+
+      // Avoid errors when adding new settings
+      try {
+        mode = settings[1];
+        listenerPriority = settings[2];
+        regexPriority = settings[3];
+        enabled = settings[4];
+        regexEnabled = settings[5];
+        ignoreAdmins = settings[6];
+      } catch (IndexOutOfBoundsException e) { saveSettings(); }
+    }
 
     // Compile paterns
     regexBlacklist.each((r, t) -> compiledRegex.put(r, Pattern.compile(r)));
-   
+
+
     // Blacklist listener
     Cons<EventType.ConnectPacketEvent> listener = e -> {
-      if (e.packet.uuid == null || e.packet.usid == null) return;
-      mindustry.net.Administration.PlayerInfo pInfo = Vars.netServer.admins.getInfoOptional(e.packet.uuid);
-      
-      if (pInfo != null && (pInfo.banned || arc.util.Time.millis() < Vars.netServer.admins.getKickTime(e.packet.uuid, e.connection.address))) return;
-      else if (!validateName(e.packet.name)) {
-        if (mode) Vars.netServer.admins.banPlayerID(e.packet.uuid);
-        e.connection.kick(message);
+      e.connection.uuid = e.packet.uuid;
+      // Redo the verification of customers in a more logical way with a kick time of 0s to avoid creation of an empty account.
+      // This avoids filling the backup with empty accounts if the server suffered a raid
+
+      // First check if is an valid client
+      if (e.packet.uuid == null || e.packet.usid == null) e.connection.kick(KickReason.idInUse, 0);
+
+      // After check version of client
+      else if (e.packet.versionType == null ||
+              ((e.packet.version == -1 ||
+                !e.packet.versionType.equals(Version.type)) &&
+              Version.build != -1 && !Vars.netServer.admins.allowsCustomClients()))
+        e.connection.kick(!Version.type.equals(e.packet.versionType) ? KickReason.typeMismatch : KickReason.customClient, 0);
+
+      else if (e.packet.version != Version.build && Version.build != -1 && e.packet.version != -1)
+        e.connection.kick(e.packet.version > Version.build ? KickReason.serverOutdated : KickReason.clientOutdated, 0);
+
+      else {
+        // Now check if the nickname is valid
+        e.packet.name = Vars.netServer.fixName(e.packet.name);
+        if (Vars.netServer.fixName(e.packet.name).trim().length() <= 0) {
+          e.connection.kick(KickReason.nameEmpty, 0);
+          return;
+        }
+          
+        // And finish by checking if name is blacklisted
+        mindustry.net.Administration.PlayerInfo pInfo = Vars.netServer.admins.getInfoOptional(e.packet.uuid);
+        if (ignoreAdmins && pInfo != null && pInfo.admin) return;
+
+        if (!validateName(e.packet.name)) {
+          if (mode) {
+            // The account will be banned,
+            // so must be manually create an account and fill it with as much information as possible,
+            // if it not already exist.
+            // This also avoids to create empty accounts but not filling the server settings.
+
+            if (pInfo == null) {
+              Vars.netServer.admins.updatePlayerJoined(e.packet.uuid, e.connection.address, e.packet.name);
+              pInfo = Vars.netServer.admins.getInfo(e.packet.uuid);
+              pInfo.adminUsid = e.packet.usid;
+              pInfo.timesJoined = 0; // the client never joined the server, this value can be used as a filter to know all invalid accounts
+            }
+
+            Vars.netServer.admins.banPlayerID(e.packet.uuid);
+          }
+
+          e.connection.kick(message, 0);
+        }
       }
     };
-     
+
+
     if (!listenerPriority) { // Listener set to default priority
-      Events.on(EventType.ConnectPacketEvent.class, listener); 
+      Events.on(EventType.ConnectPacketEvent.class, listener);
       return;
     }
-    
+
     // Try to move the listener at top for this event
     try {
       // Get events by changing variable as public instead of private
       final java.lang.reflect.Field field = Events.class.getDeclaredField("events");
       field.setAccessible(true);
       final Seq<Cons<?>> events = ((ObjectMap<Object, Seq<Cons<?>>>) field.get(null)).get(EventType.ConnectPacketEvent.class, () -> new Seq<>(Cons.class));
-      
+
       // Now we got access to all event, remove the actual handle and place it a new at top of listeners
       events.insert(0, listener);
-      
+
     } catch (final ReflectiveOperationException | SecurityException err) {
       Log.err("A security manager is present in this java version! Cannot put the blacklist listeners first in events list.");
       Log.err("Please remove the security manager if you want a first priority execution for backlist listener");
@@ -71,17 +127,14 @@ public class Main extends mindustry.mod.Plugin {
       Events.on(EventType.ConnectPacketEvent.class, listener);
     }
   }
-  
+
   public void saveSettings() {
     Core.settings.putJson("simple-blacklist", blacklist);
     Core.settings.putJson("simple-blacklist-regexlist", regexBlacklist);
     Core.settings.put("simple-blacklist-message", message);
-    Core.settings.put("simple-blacklist-mode", mode);
-    Core.settings.put("simple-blacklist-priority", listenerPriority);
-    Core.settings.put("simple-blacklist-regex", regexPriority);
-    Core.settings.put("simple-blacklist-enabled", enabled);
-    Core.settings.put("simple-blacklist-regex-enabled", regexEnabled);
-  }
+    Core.settings.put("simple-blacklist-settings",
+      Strings.binary2integer(true, mode, listenerPriority, regexPriority, enabled, regexEnabled, ignoreAdmins));
+  }                         // ^^ avoid losing data
 
   public boolean validateName(String name) {
     if (regexPriority) return !(checkInRegex(name) || checkInNames(name));
@@ -95,7 +148,7 @@ public class Main extends mindustry.mod.Plugin {
       if (Strings.normalise(name).contains(b.key)) {
         blacklist.put(b.key, b.value+1);
         Core.settings.putJson("simple-blacklist", blacklist);
-        
+
         return true;
       }
     }
@@ -108,248 +161,270 @@ public class Main extends mindustry.mod.Plugin {
     for (ObjectMap.Entry<String, Integer> b : regexBlacklist) {
       if (compiledRegex.get(b.key).matcher(Strings.normalise(name)).matches()) {
         regexBlacklist.put(b.key, b.value+1);
-        Core.settings.putJson("simple-regexlist", regexBlacklist);
-        
+        Core.settings.putJson("simple-blacklist-regexlist", regexBlacklist);
+
         return true;
       }
     }
     return false;
   }
-  
+
   public void checkPlayer(mindustry.gen.Player p) {
+    // Ignore admins if enabled
+    if (ignoreAdmins && p.admin) return;
+
     if (!validateName(p.name)) {
-      if (mode) mindustry.Vars.netServer.admins.banPlayer(p.uuid());
+      if (mode) mindustry.Vars.netServer.admins.banPlayerID(p.uuid());
        p.kick(message);
     }
   }
-  
+
   @Override
   public void registerServerCommands(arc.util.CommandHandler handler) {
+    // Command only for server console
     handler.register("blacklist", "[help|arg0] [arg1...]", "Control the blacklist. (use 'blacklist help' for more infos)", args -> {
       if (args.length == 0) {
-        if (blacklist.isEmpty() && regexBlacklist.isEmpty()) Log.info("Blacklist is empty");
-        else {
-          Seq<String> left = Strings.lJust(blacklist.keys().toSeq().map(s -> "| "+s), Strings.bestLength(blacklist.keys())+2), 
-                      right = Strings.lJust(regexBlacklist.keys().toSeq().map(s -> "  | "+s), Strings.bestLength(regexBlacklist.keys())+3);
-          
-          left = Strings.mJust(left, blacklist.values().toSeq().map(t -> " (times used: "+t+")"), 0);
-          right = Strings.mJust(right, regexBlacklist.values().toSeq().map(t -> " (times used: "+t+")"), 0);
-          
-          left.insert(0, "Blacklist of nicknames: [total: "+blacklist.size+", "+(enabled ? "enabled" : "disabled")+"]");
-          right.insert(0, "  Blacklist of regex: [total: "+regexBlacklist.size+", "+(regexEnabled ? "enabled" : "disabled")+"]");
+        // Format list
+        Seq<String> left = Strings.lJust(blacklist.keys().toSeq().map(s -> "| "+s), Strings.bestLength(blacklist.keys())+2),
+                    right = Strings.lJust(regexBlacklist.keys().toSeq().map(s -> "  | "+s), Strings.bestLength(regexBlacklist.keys())+3);
 
-          left = Strings.lJust(left, Strings.bestLength(left));
-          right = Strings.lJust(right, Strings.bestLength(right));
-          
-          Strings.mJust(left, right, 0).each(s -> Log.info(s));
-        }
+        left = Strings.mJust(left, blacklist.values().toSeq().map(t -> " (times used: "+t+")"), 0);
+        right = Strings.mJust(right, regexBlacklist.values().toSeq().map(t -> " (times used: "+t+")"), 0);
+
+        left.insert(0, "Nicknames blacklist: ["+(blacklist.isEmpty() ? "empty" : "total: "+blacklist.size)+", "+(enabled ? "enabled" : "disabled")+"]");
+        right.insert(0, "  Regex blacklist: ["+(regexBlacklist.isEmpty() ? "empty" : "total: "+regexBlacklist.size)+", "+(regexEnabled ? "enabled" : "disabled")+"]");
+
+        left = Strings.lJust(left, Strings.bestLength(left));
+        right = Strings.lJust(right, Strings.bestLength(right));
+
+        // Print settings
+        Log.info("Settings:");
+        Log.info("| Working mode: @", mode ? "ban player" : "kick player");
+        Log.info("| Listener priority: @", listenerPriority ? "first of list" : "default position");
+        Log.info("| Kick message: @", message);
+        Log.info("| List priority: nicknames @ regex", regexPriority ? "<==over==" : "==over==>");
+        Log.info("| Ignore admin players: @", ignoreAdmins);
+
+        // Print lists
+        Log.info("");
+        Strings.mJust(left, right, 0).each(s -> Log.info(s));
         return;
       }
-      
+
+      if (args[0].equals("help")) {
+        Log.info("Usage:  blacklist");
+        Log.info("   or:  blacklist help");
+        Log.info("   or:  blacklist <add|remove>[-regex] <nickname|regex...>");
+        Log.info("   or:  blacklist mode <ban|kick>");
+        Log.info("   or:  blacklist priority <first|default|regex|names>");
+        Log.info("   or:  blacklist message <text...>");
+        Log.info("   or:  blacklist <enable|disable> <names|regex|ignore-admin>");
+        Log.info("");
+        Log.info("Description:");
+        Log.info("  Any player nickname containing an item of regex or nicknames blacklist");
+        Log.info("  will be kicked or banned, depending on the setting.");
+        Log.info("  The blacklist with prioority set to 'first' can be used like a 'first");
+        Log.info("  security barrier' (or second if you use an proxy).");
+        Log.info("");
+        Log.info("  To create good regex, I recommend these websites:");
+        Log.info("    - https://regex101.com/");
+        Log.info("    - https://regex-generator.olafneumann.org/");
+        Log.info("");
+        Log.info("Note:");
+        Log.info("  - If mode is setted to ban, this will also show him the kick message");
+        Log.info("  - Colors and glyphs are removed before nickname verification");
+        Log.info("");
+        Log.info("Options:");
+        Log.info("  <no options>          Print all settings about plugin");
+        Log.info("  help                  Show this help and exit");
+        Log.info("  add nickname          Add a nickname to blacklist");
+        Log.info("  remove nickname       Remove a nickname from blacklist");
+        Log.info("  add-regex regex       Add a regex to blacklist");
+        Log.info("  remove-regex regex    Remove a regex to blacklist");
+        Log.info("  mode ban              Set the working mode to ban player if his");
+        Log.info("                        nickname contains one of list");
+        Log.info("  mode kick             Set the working mode to kick player if his");
+        Log.info("                        nickname contains one of list");
+        Log.info("  priority first        Set the blacklist listerner at top of list.");
+        Log.info("                        This can be used like a first security barrier");
+        Log.info("  priority default      Leave the blacklisted listener at priority");
+        Log.info("                        where it was declared. This can change depending");
+        Log.info("                        on order in which the server loads plugins.");
+        Log.info("  priority regex        Set regex list has priority over nicknames list");
+        Log.info("  priority names        Set nicknames list has priority over regex list");
+        Log.info("  message text          Set the message to sent to kicked player");
+        Log.info("  enable names          Enable the nicknames blacklist");
+        Log.info("  enable regex          Enable the regex blacklist");
+        Log.info("  enable ignore-admin   Username of admin players will not be verified");
+        Log.info("  disable names         Disable the nicknames blacklist");
+        Log.info("  disable regex         Disable the regex blacklist");
+        Log.info("  disable ignore-admin  All player's username will be verified");
+        Log.info("");
+        return;
+      }
+
+
+      if (args.length < 2) {
+        Log.err("Invalid usage. try 'help' argument to see usage");
+        return;
+      }
+
+
       switch (args[0]) {
-        case "help":
-          Log.info("Usage:  blacklist");
-          Log.info("   or:  blacklist help");
-          Log.info("   or:  blacklist <add|remove>[-regex] <nickname|regex...>");
-          Log.info("   or:  blacklist mode [ban|kick]");
-          Log.info("   or:  blacklist priority [first|default|regex|names]");
-          Log.info("   or:  blacklist message [text...]");
-          Log.info("   or:  blacklist <enable|disable> <names|regex>");
-          Log.info("");
-          Log.info("Description:");
-          Log.info("  Any player nickname containing an item of regex or nicknames blacklist");
-          Log.info("  will be kicked or banned, depending on the setting.");
-          Log.info("  The blacklist with prioority set to 'first' can be used like a 'first");
-          Log.info("  security barrier' (or second if you use an proxy).");
-          Log.info("");
-          Log.info("  To create good regex, I recommend these websites:");
-          Log.info("    - https://regex101.com/");
-          Log.info("    - https://regex-generator.olafneumann.org/");
-          Log.info("");
-          Log.info("Note:");
-          Log.info("  - If mode is setted to ban, this will also show him the kick message");
-          Log.info("  - Colors and glyphs are removed before nickname verification");
-          Log.info("");
-          Log.info("Options:");
-          Log.info("  <no options>        Print the status of lists and the blacklist with");
-          Log.info("                      times a nickname or regex kicked a player");
-          Log.info("  help                Show this help and exit");
-          Log.info("  add nickname        Add a nickname to blacklist");
-          Log.info("  remove nickname     Remove a nickname from blacklist");
-          Log.info("  add-regex regex     Add a regex to blacklist");
-          Log.info("  remove-regex regex  Remove a regex to blacklist");
-          Log.info("  mode                Print the actual working mode");
-          Log.info("  mode ban            Set the working mode to ban player if his");
-          Log.info("                      nickname contains one of list");
-          Log.info("  mode kick           Set the working mode to kick player if his");
-          Log.info("                      nickname contains one of list");
-          Log.info("  priority            Print priority of listener and blacklists");
-          Log.info("  priority first      Set the blacklist listerner at top of list.");
-          Log.info("                      This can be used like a first security barrier");
-          Log.info("  priority default    Leave the blacklisted listener at priority");
-          Log.info("                      where it was declared. This can change depending");
-          Log.info("                      on order in which the server loads plugins.");
-          Log.info("  priority regex      Set regex list has priority over nicknames list");
-          Log.info("  priority names      Set nicknames list has priority over regex list");
-          Log.info("  message             Print current message sent to kicked player");
-          Log.info("  message text        Set the message to sent to kicked player");
-          Log.info("  enable names        Enable the nicknames blacklist");
-          Log.info("  disable names       Disable the nicknames blacklist");
-          Log.info("  enable regex        Enable the regex blacklist");
-          Log.info("  disable regex       Disable the regex blacklist");
-          Log.info("");
-          break;
-          
         case "add":
-          if (args.length == 2) {
-            if (!blacklist.containsKey(args[1])) {
-              blacklist.put(args[1], 0);
-              saveSettings();
-              Log.info("Nickname added to blacklist");
-              mindustry.gen.Groups.player.each(p -> checkPlayer(p));
-              
-            } else Log.err("Nickname already blacklisted");
-          } else Log.err("Invalid usage. try 'help' argument to see usage");
+          if (!blacklist.containsKey(args[1])) {
+            blacklist.put(args[1], 0);
+            saveSettings();
+            Log.info("Nickname added to blacklist");
+            mindustry.gen.Groups.player.each(p -> checkPlayer(p));
+
+          } else Log.err("Nickname already blacklisted");
           break;
-          
+
         case "remove":
-          if (args.length == 2) {
-            if (blacklist.containsKey(args[1])) {
-              blacklist.remove(args[1]);
-              saveSettings();
-              Log.info("Nickname removed from blacklist");
-            
-            } else Log.err("Nickname not blacklisted");
-          } else Log.err("Invalid usage. try 'help' argument to see usage");
+          if (blacklist.containsKey(args[1])) {
+            blacklist.remove(args[1]);
+            saveSettings();
+            Log.info("Nickname removed from blacklist");
+
+          } else Log.err("Nickname not blacklisted");
           break;
-          
-          case "add-regex":
-          if (args.length == 2) {
-            if (!regexBlacklist.containsKey(args[1])) {
-              // Check if regex is valid
-              try {
-                if (Pattern.compile(args[1]).matcher("test string") == null) {
-                  Log.err("Bad formatted regex '@'", args[1]);
-                  break;
-                }
-              } catch (java.util.regex.PatternSyntaxException e) {
+
+        case "add-regex":
+          if (!regexBlacklist.containsKey(args[1])) {
+            // Check if regex is valid
+            try {
+              if (Pattern.compile(args[1]).matcher("test string") == null) {
                 Log.err("Bad formatted regex '@'", args[1]);
                 break;
               }
-              
-              compiledRegex.put(args[1], Pattern.compile(args[1]));
-              regexBlacklist.put(args[1], 0);
-              saveSettings();
-              Log.info("Regex added to blacklist");
-              mindustry.gen.Groups.player.each(p -> checkPlayer(p));
-              
-            } else Log.err("Regex already blacklisted");
-          } else Log.err("Invalid usage. try 'help' argument to see usage");
+            } catch (java.util.regex.PatternSyntaxException e) {
+              Log.err("Bad formatted regex '@'", args[1]);
+              break;
+            }
+
+            compiledRegex.put(args[1], Pattern.compile(args[1]));
+            regexBlacklist.put(args[1], 0);
+            saveSettings();
+            Log.info("Regex added to blacklist");
+            mindustry.gen.Groups.player.each(p -> checkPlayer(p));
+
+          } else Log.err("Regex already blacklisted");
           break;
-          
+
         case "remove-regex":
-          if (args.length == 2) {
-            if (regexBlacklist.containsKey(args[1])) {
-              regexBlacklist.remove(args[1]);
-              compiledRegex.remove(args[1]);
-              saveSettings();
-              Log.info("Regex removed from blacklist");
-            
-            } else Log.err("Regex not blacklisted");
-          } else Log.err("Invalid usage. try 'help' argument to see usage");
+          if (regexBlacklist.containsKey(args[1])) {
+            regexBlacklist.remove(args[1]);
+            compiledRegex.remove(args[1]);
+            saveSettings();
+            Log.info("Regex removed from blacklist");
+
+          } else Log.err("Regex not blacklisted");
           break;
 
         case "mode":
-          if (args.length == 2) {
-            if (args[1].equals("ban")) {
-              mode = true;
-              saveSettings();
-              Log.info("Working mode set to ban the player");
-              
-            } else if (args[1].equals("kick")) {
-              mode = false;
-              saveSettings();
-              Log.info("Working mode set to just kick the player");
-              
-            } else Log.err("Working mode must be 'kick' or 'ban'");
-          } else Log.info("Actual working mode is to @", mode ? "ban player" : "just kick it");
+          if (args[1].equals("ban")) {
+            mode = true;
+            saveSettings();
+            Log.info("Working mode set to ban the player");
+
+          } else if (args[1].equals("kick")) {
+            mode = false;
+            saveSettings();
+            Log.info("Working mode set to just kick the player");
+
+          } else Log.err("Working mode must be 'kick' or 'ban'");
           break;
-        
+
         case "priority":
-          if (args.length == 2) {
-            if (args[1].equals("first")) {
+          switch (args[1]) {
+            case "first":
               listenerPriority = true;
-              saveSettings();
               Log.info("Listener priority set to first position in events list");
               Log.info("&gNow restart the server for the changes to take effect");
-              
-            } else if (args[1].equals("default")) {
+              break;
+
+            case "default":
               listenerPriority = false;
-              saveSettings();
               Log.info("Listener priority set to default position in events list");
               Log.info("&gNow restart the server for the changes to take effect");
-              
-            } else if (args[1].equals("names")) {
+              break;
+
+            case "names":
               regexPriority = false;
-              saveSettings();
               Log.info("Regex list set to have priority over nicknames list");
-              
-            } else if (args[1].equals("regex")) {
+              break;
+
+            case "regex":
               regexPriority = true;
-              saveSettings();
               Log.info("Nicknames list set to have priority over regex list");
-              
-            } else Log.err("Priority argument must be 'first', 'default', 'names' or 'regex'");
-          } else {
-            Log.info("Actual priority of blacklist listener is @", listenerPriority ? "first of list" : "default");
-            Log.info("@ has priority over @ list", regexPriority ? "Regex" : "Nicknames", regexPriority ? "nicknames" : "regex");
+              break;
+
+            default:
+              Log.err("Priority argument must be 'first'/'default' or 'names'/'regex'");
+              return;
           }
+          saveSettings();
           break;
-          
+
         case "message":
-          if (args.length == 2) {
-            Log.info("Message modified");
-            message = args[1];
-            saveSettings();
-            
-          } else Log.info("Actual message is: @", message);
+          Log.info("Message modified");
+          message = args[1];
+          saveSettings();
           break;
-          
+
         case "enable":
-          if (args.length == 2) {
-            if (args[1].equals("names")) {
+          switch (args[1]) {
+            case "names":
               enabled = true;
-              saveSettings();
               Log.info("Enabled nicknames blacklist");
               mindustry.gen.Groups.player.each(p -> checkPlayer(p));
-              
-            } else if (args[1].equals("regex")) {
+              break;
+
+            case "regex":
               regexEnabled = true;
-              saveSettings();
               Log.info("Enabled regex blacklist");
               mindustry.gen.Groups.player.each(p -> checkPlayer(p));
-              
-            } else Log.err("List type must be 'regex' or 'names'");
-          } else Log.err("Invalid usage. try 'help' argument to see usage");
+              break;
+
+            case "ignore-admin":
+              ignoreAdmins = true;
+              Log.info("Username of admin players will not be verified");
+              break;
+
+            default:
+              Log.err("Argument must be 'regex', 'names' or 'ignore-admin'");
+              return;
+          }
+          saveSettings();
           break;
 
         case "disable":
-          if (args.length == 2) {
-            if (args[1].equals("names")) {
+          switch (args[1]) {
+            case "names":
               enabled = false;
-              saveSettings();
               Log.info("Disabled nicknames blacklist");
-              
-            } else if (args[1].equals("regex")) {
-              regexEnabled = false;
-              saveSettings();
-              Log.info("Disabled regex blacklist");
-              
-            } else Log.err("List type must be 'regex' or 'names'");
-          } else Log.err("Invalid usage. try 'help' argument to see usage");
-          break;    
+              break;
 
-        default: Log.err("Invalid argument. try 'help' argument to see usage");
+            case "regex":
+              regexEnabled = false;
+              Log.info("Disabled regex blacklist");
+              break;
+
+            case "ignore-admin":
+              ignoreAdmins = false;
+              Log.info("All player's username will be verified");
+              break;
+
+            default:
+              Log.err("Argument must be 'regex', 'names' or 'ignore-admin'");
+              return;
+          }
+          saveSettings();
+          break;
+
+        default: 
+          Log.err("Invalid argument. try 'help' argument to see usage");
       }
     });
   }
