@@ -50,7 +50,6 @@ public class Main extends mindustry.mod.Plugin {
 
     // Blacklist listener
     Cons<EventType.ConnectPacketEvent> listener = e -> {
-      e.connection.uuid = e.packet.uuid;
       // Redo the verification of customers in a more logical way with a kick time of 0s to avoid creation of an empty account.
       // This avoids filling the backup with empty accounts if the server suffered a raid
 
