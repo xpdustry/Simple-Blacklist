@@ -76,7 +76,7 @@ public class Main extends mindustry.mod.Plugin {
           e.connection.kick(KickReason.nameEmpty, 0);
           return;
         }
-          
+
         // And finish by checking if name is blacklisted
         mindustry.net.Administration.PlayerInfo pInfo = Vars.netServer.admins.getInfoOptional(e.packet.uuid);
         if (ignoreAdmins && pInfo != null && pInfo.admin) return;
@@ -423,7 +423,7 @@ public class Main extends mindustry.mod.Plugin {
           saveSettings();
           break;
 
-        default: 
+        default:
           Log.err("Invalid argument. try 'help' argument to see usage");
       }
     });
