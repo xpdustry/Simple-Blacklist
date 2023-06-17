@@ -186,7 +186,7 @@ public class Main extends mindustry.mod.Plugin {
       if (args.length == 0) {
         // Format list
         Seq<String> left = Strings.lJust(blacklist.keys().toSeq().map(s -> "| "+s), Strings.bestLength(blacklist.keys())+2),
-                    right = Strings.lJust(regexBlacklist.keys().toSeq().map(s -> "  | "+s), Strings.bestLength(regexBlacklist.keys())+3);
+                    right = Strings.lJust(regexBlacklist.keys().toSeq().map(s -> "  | "+s), Strings.bestLength(regexBlacklist.keys())+4);
 
         left = Strings.mJust(left, blacklist.values().toSeq().map(t -> " (times used: "+t+")"), 0);
         right = Strings.mJust(right, regexBlacklist.values().toSeq().map(t -> " (times used: "+t+")"), 0);
