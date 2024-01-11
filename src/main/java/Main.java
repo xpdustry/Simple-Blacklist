@@ -49,7 +49,8 @@ public class Main extends mindustry.mod.Plugin {
                   regexPriority = false,
                   enabled = true,
                   regexEnabled = true,
-                  ignoreAdmins = false;
+                  ignoreAdmins = false,
+                  isBanIP = false;
 
   @SuppressWarnings("unchecked")
   public Main() {
@@ -67,6 +68,7 @@ public class Main extends mindustry.mod.Plugin {
         enabled = settings[4];
         regexEnabled = settings[5];
         ignoreAdmins = settings[6];
+        isBanIP = settings[7];
       } catch (IndexOutOfBoundsException e) { saveSettings(); }
     }
 
@@ -129,8 +131,9 @@ public class Main extends mindustry.mod.Plugin {
               pInfo.adminUsid = e.packet.usid;
               pInfo.timesJoined = 0; // the client never joined the server, this value can be used as a filter to know all invalid accounts
             }
-
-            Vars.netServer.admins.banPlayerID(e.packet.uuid);
+            
+            if (isBanIP) Vars.netServer.admins.banPlayerIP(e.connection.address);
+            else Vars.netServer.admins.banPlayerID(e.packet.uuid);
           }
 
           e.connection.kick(message, 0);
@@ -169,7 +172,7 @@ public class Main extends mindustry.mod.Plugin {
     Core.settings.putJson("simple-blacklist-regexlist", regexBlacklist);
     Core.settings.put("simple-blacklist-message", message);
     Core.settings.put("simple-blacklist-settings",
-      Strings.binary2integer(true, mode, listenerPriority, regexPriority, enabled, regexEnabled, ignoreAdmins));
+      Strings.binary2integer(true, mode, listenerPriority, regexPriority, enabled, regexEnabled, ignoreAdmins, isBanIP));
   }                         // ^^ avoid losing data
 
   public boolean validateName(String name) {
@@ -235,7 +238,7 @@ public class Main extends mindustry.mod.Plugin {
 
         // Print settings
         Log.info("Settings:");
-        Log.info("| Working mode: @", mode ? "ban player" : "kick player");
+        Log.info("| Working mode: @", mode ? "ban player " + (isBanIP ? "IP" : "UUID") : "kick player");
         Log.info("| Listener priority: @", listenerPriority ? "first of list" : "default position");
         Log.info("| Kick message: @", message);
         Log.info("| List priority: nicknames @ regex", regexPriority ? "<==over==" : "==over==>");
@@ -243,7 +246,7 @@ public class Main extends mindustry.mod.Plugin {
 
         // Print lists
         Log.info("");
-        Strings.mJust(left, right, 0).each(s -> Log.info(s));
+        Strings.mJust(left, right, Strings.bestLength(left)+Strings.bestLength(right)).each(s -> Log.info(s));
         return;
       }
 
@@ -251,7 +254,7 @@ public class Main extends mindustry.mod.Plugin {
         Log.info("Usage:  blacklist");
         Log.info("   or:  blacklist help");
         Log.info("   or:  blacklist <add|remove>[-regex] <nickname|regex...>");
-        Log.info("   or:  blacklist mode <ban|kick>");
+        Log.info("   or:  blacklist mode <ban-ip|ban-uuid|kick>");
         Log.info("   or:  blacklist priority <first|default|regex|names>");
         Log.info("   or:  blacklist message <text...>");
         Log.info("   or:  blacklist <enable|disable> <names|regex|ignore-admin>");
@@ -277,8 +280,10 @@ public class Main extends mindustry.mod.Plugin {
         Log.info("  remove nickname       Remove a nickname from blacklist");
         Log.info("  add-regex regex       Add a regex to blacklist");
         Log.info("  remove-regex regex    Remove a regex to blacklist");
-        Log.info("  mode ban              Set the working mode to ban player if his");
-        Log.info("                        nickname contains one of list");
+        Log.info("  mode ban-ip           Set the working mode to ban the player IP if");
+        Log.info("                        his nickname contains one of list");
+        Log.info("  mode ban-uuid         Set the working mode to ban the player UUID if");
+        Log.info("                        his nickname contains one of list");
         Log.info("  mode kick             Set the working mode to kick player if his");
         Log.info("                        nickname contains one of list");
         Log.info("  priority first        Set the blacklist listerner at top of list.");
@@ -359,17 +364,25 @@ public class Main extends mindustry.mod.Plugin {
           break;
 
         case "mode":
-          if (args[1].equals("ban")) {
+          if (args[1].equals("ban-ip")) {
             mode = true;
+            isBanIP = true;
+            saveSettings();
+            Log.info("Working mode set to ban the player");
+
+          } else if (args[1].equals("ban-uuid")) {
+            mode = true;
+            isBanIP = false;
             saveSettings();
             Log.info("Working mode set to ban the player");
 
           } else if (args[1].equals("kick")) {
             mode = false;
+            isBanIP = false;
             saveSettings();
             Log.info("Working mode set to just kick the player");
 
-          } else Log.err("Working mode must be 'kick' or 'ban'");
+          } else Log.err("Working mode must be 'ban-ip', 'ban-uuid' or 'kick'");
           break;
 
         case "priority":

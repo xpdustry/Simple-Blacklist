@@ -4,5 +4,5 @@
   "author": "ZetaMap",
   "main": "Main",
   "description": "Allows to prohibit nicknames with a blacklist, all nicknames containing one from the list, or matches with one regex, will be banned or kicked",
-  "version": "1.3"
+  "version": "1.4"
 }

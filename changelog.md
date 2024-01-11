@@ -1,3 +1,7 @@
+1.4:
+  - Added option to ban IP
+  - Fixed display bug when more regex than nickname list
+
 1.3:
   - Fixed bug when kick player, is not realy kicked (verifications continue after kick)
   - Added a prevention of multiple connection of a client
