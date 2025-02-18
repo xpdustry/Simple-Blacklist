@@ -2,7 +2,11 @@
   "name": "simple-blacklist",
   "displayName": "Simple Blacklist",
   "author": "ZetaMap",
-  "main": "Main",
-  "description": "Allows to prohibit nicknames with a blacklist, all nicknames containing one from the list, or matches with one regex, will be banned or kicked",
-  "version": "1.4"
+  "main": "com.xpdustry.simple_blacklist.Main",
+  "description": "Allows to filter player nicknames, which contain specific text or match a regex, as well as IPs and subnets.",
+  "version": "1.5",
+  "minGameVersion": "146",
+  "java": true,
+  "repo": "xpdustry/simple-blacklist",
+  "softDependencies": [ "slf4md" ] 
 }

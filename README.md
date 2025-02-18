@@ -1,22 +1,29 @@
 # Simple Blacklist
-Just a simple blacklist with some added features to customise it, like working mode,  kick message or priority of listener.
+Just a simple blacklist with modifiable features, like working mode, kick message or priority of listener.
 
-A pretty good feature is the listener priority of blacklist: if set to 'first', it's working before all verifications of client, so it can avoid creating empty accounts or interfere with other listeners
+To control the blacklist, run the ``blacklist`` command. <br>
+And to see command usage, run ``blacklist help``.
+
+### Features
+**TODO**
+
+A pretty good feature is the blacklist listener priority: if set to 'first', it's working before all verifications of client, so it can avoid creating empty accounts or interfere with other listeners
 
 **Also this can allow a blacklist of regex. If a nickname matches with one regex of list, it's also kicked.<br>
 This is very useful for servers that suffer raids with different nicknames each time.**
 
-To control the blacklist, is very simple. Just use the command 'blacklist'. <br>
-And to see usage of command, use 'blacklist help'.
 
 ### Feedback
 Open an issue if you have a suggestion.
 
-### Releases
-Prebuild relases can be found [here](https://github.com/Xpdustry/Simple-Blacklist/releases)
 
-### Building a Jar 
-You have just run command ``./gradlew :build`` or execute script ``build.bat`` (for Windows) or ``build.sh`` (for Linux) and the plugin will compile automatically.
+### Releases
+Prebuild releases can be found [here](https://github.com/Xpdustry/simple-blacklist/releases)
+
+
+### Building
+Just run ``./gradlew build`` and the plugin will compile and export automatically.
+
 
 ### Installing
 Simply place the output jar from the step above in your server's `config/mods` directory and restart the server.

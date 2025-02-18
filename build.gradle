@@ -1,28 +1,47 @@
-apply plugin: "java"
+import com.xpdustry.toxopid.spec.ModMetadata
+import com.xpdustry.toxopid.spec.ModPlatform
 
-version '1.0'
+plugins {
+    id "java"
+    id "com.xpdustry.toxopid" version "4.1.0"
+}
 
-sourceCompatibility = 1.8
+def metadata = ModMetadata.fromJson(file("src/main/resources/plugin.json"))
+group = "com.xpdustry"
+version = metadata.version
+description = metadata.description
 
-repositories{
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+repositories {
     mavenCentral()
-    maven{ url 'https://www.jitpack.io' }
+    maven { url "https://maven.xpdustry.com/mindustry" }
+    maven { url "https://www.jitpack.io" }
 }
 
-ext{
-    //the build number that this plugin is made for
-    mindustryVersion = 'v146'
+toxopid {
+    compileVersion = "v${metadata.minGameVersion}"
+    platforms = [ModPlatform.SERVER]
 }
 
-dependencies{
-    compileOnly "com.github.Anuken.Arc:arc-core:$mindustryVersion"
-    compileOnly "com.github.Anuken.Mindustry:core:$mindustryVersion"
+dependencies {
+    compileOnly toxopid.dependencies.arcCore
+    compileOnly toxopid.dependencies.mindustryCore
+    // For SLF4MD compatibility
+    compileOnly "org.slf4j:slf4j-api:2.0.16"
 }
 
-jar{
-    archiveFileName = "simple-blacklist.jar"
-    version="1.0"
-    from{
-        configurations.runtimeClasspath.collect{it.isDirectory() ? it : zipTree(it)}
-    }
+jar {
+    archiveFileName = "${metadata.name}.jar"
+    
+    //copy the builded jar to the working directory
+    doLast {
+		copy {
+			from jar
+			into "."
+		}
+	}
 }
