@@ -28,24 +28,12 @@ package com.xpdustry.simple_blacklist;
 
 import java.util.regex.Pattern;
 
-import com.xpdustry.simple_blacklist.util.Subnet;
-
 import arc.util.Nullable;
 import mindustry.net.NetConnection;
 import mindustry.net.Packets.ConnectPacket;
 
 
 public class Events {
-  public static class CheckingAddressEvent {
-    public final String address;
-    public final NetConnection con;
-
-    public CheckingAddressEvent(String address, NetConnection con) {
-      this.address = address;
-      this.con = con;
-    }
-  }
-  
   public static class CheckingNicknameEvent {
     public final String name, uuid;
     public final NetConnection con;
@@ -57,17 +45,6 @@ public class Events {
       this.uuid = uuid;
       this.con = con;
       this.packet = packet;
-    }
-  }
-  
-  
-  public static class BlacklistedAddressEvent {
-    public final String address;
-    public final NetConnection con;
-
-    public BlacklistedAddressEvent(String address, NetConnection con) {
-      this.address = address;
-      this.con = con;
     }
   }
   
@@ -102,16 +79,6 @@ public class Events {
     
     public RegexListUpdatedEvent(Pattern regex, int uses) {
       this.regex = regex;
-      this.uses = uses;
-    }
-  }
-  
-  public static class SubnetListUpdatedEvent {
-    public final Subnet subnet;
-    public final int uses;
-    
-    public SubnetListUpdatedEvent(Subnet subnet, int uses) {
-      this.subnet = subnet;
       this.uses = uses;
     }
   }

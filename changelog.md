@@ -1,3 +1,11 @@
+#### 1.6:
+  - **CRITICAL**: Removed IP and subnet support, because it's not the goal of this plugin
+  - Changed logger system
+  - Removed VersionChecker because it's useless for type of plugin
+  - Changed command usage
+  - Updated README and added a warning to use the [Anti-VPN-Service](github.com/xpdustry/Anti-VPN-Service) plugin for IP and subnet filtering
+  - Added colors when displaying plugin config
+
 #### 1.5:
   - Fixed compilation issue with Mindustry sources and changed to Toxopid
   - Updated the README

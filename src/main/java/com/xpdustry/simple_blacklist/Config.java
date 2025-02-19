@@ -30,7 +30,6 @@ import java.util.regex.Pattern;
 
 import com.xpdustry.simple_blacklist.util.JsonSettings;
 import com.xpdustry.simple_blacklist.util.Strings;
-import com.xpdustry.simple_blacklist.util.Subnet;
 
 import arc.Core;
 import arc.struct.ObjectIntMap;
@@ -53,11 +52,7 @@ public class Config {
       public void write(Json json, Pattern object, Class knownType) { json.writeValue(object.toString()); }
       public Pattern read(Json json, JsonValue jsonData, Class type) { return Pattern.compile(jsonData.asString()); }    
     });
-    settings.getJson().setSerializer(Subnet.class, new Json.Serializer<Subnet>() {
-      public void write(Json json, Subnet object, Class knownType) { json.writeValue(object.toString()); }
-      public Subnet read(Json json, JsonValue jsonData, Class type) { return Subnet.createInstance(jsonData.asString()); }
-    });
-    
+
     // Add an autosave task for every minutes
     arc.util.Timer.schedule(() -> {if (all.contains(Field::modified)) save();}, 60, 60);
   }
@@ -94,7 +89,7 @@ public class Config {
       regexList.set(converted);
     }
     if (Core.settings.has("simple-blacklist-message")) 
-      nameMessage.set(Core.settings.getString("simple-blacklist-message"));
+      message.set(Core.settings.getString("simple-blacklist-message"));
     if (Core.settings.has("simple-blacklist-settings")) {
       boolean[] settings = Strings.int2bits(Core.settings.getInt("simple-blacklist-settings"));
 
@@ -195,20 +190,15 @@ public class Config {
   // Settings
   public static final Field<Boolean> 
     namesEnabled = new Field<>("names-enabled", "", true),
-    regexEnabled = new Field<>("regex-enabled", "", true),
-    subnetEnabled = new Field<>("subnets-enabled", "", true);
+    regexEnabled = new Field<>("regex-enabled", "", true);
   
   public static final Field<ObjectIntMap<String>> 
     namesList = new Field("names", "Nickname list", String.class, new ObjectIntMap<>());
   public static final Field<ObjectIntMap<Pattern>> 
     regexList = new Field("regex", "Regex list", Pattern.class, new ObjectIntMap<>());
-  public static final Field<ObjectIntMap<Subnet>> 
-    subnetList = new Field("subnets", "IP/Subnet list", Subnet.class, new ObjectIntMap<>());
-  
+
   public static final Field<String>
-    nameMessage = new Field<>("name-message", "Blacklisted name kick message (can be empty)", "A part of your nickname is prohibited."),
-    ipMessage = new Field<>("ip-message", "Blacklisted IP kick message (can be empty)", "Your IP is blacklisted.");
-  
+    message = new Field<>("message", "Kick message &fi(can be empty)&fr", "A part of your nickname is prohibited.");
   public static final Field<WorkingMode>
     mode = new Field<>("mode", "Working mode", WorkingMode.kick);
   public static final Field<Boolean>

@@ -26,7 +26,7 @@
 
 package com.xpdustry.simple_blacklist;
 
-import com.xpdustry.simple_blacklist.util.Logger;
+import com.xpdustry.simple_blacklist.util.Log;
 import com.xpdustry.simple_blacklist.util.Strings;
 
 import arc.Events;
@@ -42,24 +42,9 @@ import static mindustry.Vars.netServer;
 
 
 public class Manager {
-  private static final Logger logger = new Logger(Manager.class);
-
   public static void registerListeners() {
-    // Subnet blacklist listener
-    Cons<ConnectionEvent> connectionListener = e -> {
-      try {
-        Events.fire(new CheckingAddressEvent(e.connection.address, e.connection));
-        if (!isValidAddress(e.connection.address)) {
-          logger.info("Kicking client '@' for a blacklisted ip.", e.connection.address);
-          if (Config.ipMessage.get().isEmpty()) e.connection.kick(KickReason.banned, 0);
-          else e.connection.kick(Config.ipMessage.get(), 0);
-          Events.fire(new BlacklistedAddressEvent(e.connection.address, e.connection));
-        }
-      } catch (Exception ex) { e.connection.kick(KickReason.recentKick, 0); }
-    };
-    
     // Name blacklist listener
-    Cons<ConnectPacketEvent> connectPacketListener = e -> {
+    Cons<ConnectPacketEvent> listener = e -> {
       e.connection.uuid = e.packet.uuid; // For console visual 
 
       // Handle case of multiple connection of client
@@ -109,11 +94,11 @@ public class Manager {
         } else if (Config.mode.get() == Config.WorkingMode.banip)
           netServer.admins.banPlayerIP(e.connection.address);
 
-        logger.info("Kicking client '@' for a blacklisted nickname.", e.connection.address);
-        if (Config.nameMessage.get().isEmpty()) 
+        Log.info("Kicking client '@' [@] for a blacklisted nickname.", e.connection.address, e.packet.uuid);
+        if (Config.message.get().isEmpty()) 
           e.connection.kick(Config.mode.get() == Config.WorkingMode.kick ? KickReason.kick : KickReason.banned, 
                             pInfo != null ? 30*1000 : 0);
-        else e.connection.kick(Config.nameMessage.get(), pInfo != null ? 30*1000 : 0);
+        else e.connection.kick(Config.message.get(), pInfo != null ? 30*1000 : 0);
         Events.fire(new BlacklistedNicknameEvent(e.packet.name, e.packet.uuid, e.connection, e.packet));
       }
     };
@@ -122,25 +107,19 @@ public class Manager {
     // Try to move listeners at top of lists
     try {
       arc.struct.ObjectMap<Object, Seq<Cons<?>>> events = arc.util.Reflect.get(Events.class, "events");
-
-      events.get(ConnectionEvent.class, () -> new Seq<>(Cons.class)).insert(0, connectionListener);
-      events.get(ConnectPacketEvent.class, () -> new Seq<>(Cons.class)).insert(0, connectPacketListener);
+      
+      events.get(ConnectPacketEvent.class, () -> new Seq<>(Cons.class)).insert(0, listener);
 
     } catch (RuntimeException err) {
-      logger.warn("Unable to get access of Events.class, because of a security manager!");
-      logger.warn("Falling back to a normal event...");
+      Log.warn("Unable to get access of Events.class, because of a security manager!");
+      Log.warn("Falling back to a normal event...");
 
-      Events.on(ConnectionEvent.class, connectionListener);
-      Events.on(ConnectPacketEvent.class, connectPacketListener);
+      Events.on(ConnectPacketEvent.class, listener);
     }
     
     // Add a listener when exiting the server
     arc.Core.app.addListener(new arc.ApplicationListener() {
-      @Override
-      public void dispose() { 
-        logger.info("Saving settings...");
-        Config.save();
-      }
+      public void dispose() { Config.save(); }
     });  
   }
 
@@ -175,58 +154,19 @@ public class Manager {
     return true;
   }
 
-  /** 
-   * @return {@code true} if the address is in a subnet range of the list
-   * @apiNote this will return {@code true} if the list is disabled.
-   * @throws IllegalArgumentException if it's not a valid ip address
-   */
-  public static boolean isValidAddress(String address) {
-    if (Config.subnetEnabled.get()) {
-      if (!com.xpdustry.simple_blacklist.util.InetAddressValidator.isValid(address))
-        throw new IllegalArgumentException("bad-formatted IPv4/IPv6 address");
-      
-      try {
-        java.net.InetAddress a = java.net.InetAddress.getByName(address);
-        
-        for (ObjectIntMap.Entry<com.xpdustry.simple_blacklist.util.Subnet> e : Config.subnetList.get()) {
-          if (e.key.isInNet(a)) {
-            int old = Config.subnetList.getForChange().increment(e.key);
-            arc.Events.fire(new SubnetListUpdatedEvent(e.key, old+1));
-            return false;
-          }
-        }
-        
-      } catch (java.net.UnknownHostException e) {//cannot happen
-        throw new IllegalArgumentException("bad-formatted IPv4/IPv6 address");
-      }
-    }
-    
-    return true;
-  }
-
   public static void checkOnlinePlayers() {
     mindustry.gen.Groups.player.each(p -> {
       // Ignore admins if enabled
       if (Config.ignoreAdmins.get() && p.admin) return;
-  
-      try {
-        Events.fire(new CheckingAddressEvent(p.con.address, p.con));
-        if (!isValidAddress(p.con.address)) {
-          logger.info("Kicking player '@' [@] for a blacklisted ip.", p.plainName(), p.uuid());
-          if (Config.ipMessage.get().isEmpty()) p.kick(KickReason.banned);
-          else p.kick(Config.ipMessage.get());
-          Events.fire(new BlacklistedAddressEvent(p.con.address, p.con));
-        }
-      } catch (Exception ex) {}
-      
+
       Events.fire(new CheckingNicknameEvent(p.name, p.uuid(), p.con, null));
       if (!isValidName(p.name)) {
-        logger.info("Kicking player '@' [@] for a blacklisted nickname.", p.plainName(), p.uuid());
+        Log.info("Kicking player '@' [@] for a blacklisted nickname.", Strings.normalise(p.name), p.uuid());
         if (Config.mode.get() == Config.WorkingMode.banip) netServer.admins.banPlayerIP(p.con.address);
         else if (Config.mode.get() == Config.WorkingMode.banuuid) netServer.admins.banPlayerID(p.uuid());
-        if (Config.nameMessage.get().isEmpty()) 
+        if (Config.message.get().isEmpty()) 
              p.kick(Config.mode.get() == Config.WorkingMode.kick ? KickReason.kick : KickReason.banned);
-        else p.kick(Config.nameMessage.get());
+        else p.kick(Config.message.get());
         Events.fire(new BlacklistedNicknameEvent(p.name, p.uuid(), p.con, null));
       }      
     });
