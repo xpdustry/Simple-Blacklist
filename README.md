@@ -1,16 +1,22 @@
 # Simple Blacklist
-Just a simple blacklist with modifiable features, like working mode, kick message or priority of listener.
+Allows to filter player nicknames, which contain specific text or matches a regex. <br>
+Can also prohibit specific IP addresses or entire address ranges.
+
+> [!NOTE]
+>
+> For advanced IP/Subnet filtering, please use the [Anti-VPN-Service](github.com/xpdustry/Anti-VPN-Service) plugin instead.
 
 To control the blacklist, run the ``blacklist`` command. <br>
 And to see command usage, run ``blacklist help``.
 
 ### Features
-**TODO**
-
-A pretty good feature is the blacklist listener priority: if set to 'first', it's working before all verifications of client, so it can avoid creating empty accounts or interfere with other listeners
-
-**Also this can allow a blacklist of regex. If a nickname matches with one regex of list, it's also kicked.<br>
-This is very useful for servers that suffer raids with different nicknames each time.**
+* **Nickname blacklist**: Verify if the player name contains any element of the list.
+* **Nickname normalizer**: Removes color and glyphs from player name during checks.
+* **Regex blacklist**: Verify if the player name matches with any pattern of the list.
+* **IP/Subnet blacklist**: Verify if the player IP is in a subnet of the list.
+* **Working mode**: Can kick the player, ban the uuid or ban the IP. *(only working with nickname and regex blacklist)*
+* **Ignore admins**: Can ignore admin players. *(only working with nickname and regex blacklist)*
+* **Kick Message**: Custom kick message when rejecting the player for blacklisted nickname or IP.
 
 
 ### Feedback

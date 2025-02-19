@@ -141,7 +141,7 @@ public class Main extends mindustry.mod.Plugin {
                     + "   or:  blacklist mode <ban-ip|ban-uuid|kick>\n"
                     + "   or:  blacklist <name-message|ip-message> <text...>\n\n"
                     + "Description:\n"
-                    + "  Allows to filter player nicknames, which contain specific text or match a regex.\n"
+                    + "  Allows to filter player nicknames, which contain specific text or matches a regex.\n"
                     + "  Can also prohibit specific IP addresses or entire address ranges,\n"
                     + "  but for advanced features, please use the Anti-VPN-Service plugin instead.\n\n"
                     + "  To create good regex, I recommend these websites:\n"

@@ -3,7 +3,7 @@
   "displayName": "Simple Blacklist",
   "author": "ZetaMap",
   "main": "com.xpdustry.simple_blacklist.Main",
-  "description": "Allows to filter player nicknames, which contain specific text or match a regex, as well as IPs and subnets.",
+  "description": "Allows to filter player nicknames, which contain specific text or matches a regex, as well as IPs and subnets.",
   "version": "1.5",
   "minGameVersion": "146",
   "java": true,
