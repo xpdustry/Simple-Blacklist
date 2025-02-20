@@ -7,7 +7,7 @@ The command is also available for admin players by using ``/blacklist``.
 > [!IMPORTANT]
 >
 > This plugin only works around player nicknames. <br>
-> For IP/Subnet filtering, please use the [Anti-VPN-Service](github.com/xpdustry/Anti-VPN-Service) plugin instead.
+> For IP/Subnet filtering, please use the [Anti-VPN-Service](https://github.com/xpdustry/Anti-VPN-Service) plugin instead.
 
 
 ### Features
