@@ -245,48 +245,7 @@ public class Strings extends arc.util.Strings {
       default: return false;
     }
   }
-  
-  /** 
-   * @return whether {@code newVersion} is greater than {@code currentVersion}, e.g. "v146" > "124.1"
-   * @apiNote can handle multiple dots in the version, and it's very fast because it only does one iteration.
-   */
-  public static boolean isVersionAtLeast(String currentVersion, String newVersion) {
-    int last1 = currentVersion.startsWith("v") ? 1 : 0, 
-        last2 = newVersion.startsWith("v") ? 1 : 0, 
-        len1 = currentVersion.length(), 
-        len2 = newVersion.length(),
-        dot1 = 0, dot2 = 0, 
-        p1 = 0, p2 = 0;
-    
-    while ((dot1 != -1  && dot2 != -1) && (last1 < len1 && last2 < len2)) {
-      dot1 = currentVersion.indexOf('.', last1);
-      dot2 = newVersion.indexOf('.', last2);
-      if (dot1 == -1) dot1 = len1;
-      if (dot2 == -1) dot2 = len2;
-      
-      p1 = parseInt(currentVersion, 10, 0, last1, dot1);
-      p2 = parseInt(newVersion, 10, 0, last2, dot2);
-      last1 = dot1+1;
-      last2 = dot2+1;
 
-      if (p1 != p2) return p2 > p1;
-    }
-
-    // Continue iteration on newVersion to see if it's just leading zeros.
-    while (dot2 != -1 && last2 < len2) {
-      dot2 = newVersion.indexOf('.', last2);
-      if (dot2 == -1) dot2 = len2;
-      
-      p2 = parseInt(newVersion, 10, 0, last2, dot2);
-      last2 = dot2+1;
-      
-      if (p2 > 0) return true;
-    }
-    
-    return false;
-  }
-
-  
   public static String jsonPrettyPrint(JsonValue object, OutputType outputType) {
     StringWriter out = new StringWriter();
     try { jsonPrettyPrint(object, out, outputType, 0); } 

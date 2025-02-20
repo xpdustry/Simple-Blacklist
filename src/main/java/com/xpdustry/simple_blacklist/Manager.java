@@ -26,7 +26,7 @@
 
 package com.xpdustry.simple_blacklist;
 
-import com.xpdustry.simple_blacklist.util.Log;
+import com.xpdustry.simple_blacklist.util.Logger;
 import com.xpdustry.simple_blacklist.util.Strings;
 
 import arc.Events;
@@ -42,6 +42,8 @@ import static mindustry.Vars.netServer;
 
 
 public class Manager {
+  private static Logger logger = new Logger();
+  
   public static void registerListeners() {
     // Name blacklist listener
     Cons<ConnectPacketEvent> listener = e -> {
@@ -94,7 +96,7 @@ public class Manager {
         } else if (Config.mode.get() == Config.WorkingMode.banip)
           netServer.admins.banPlayerIP(e.connection.address);
 
-        Log.info("Kicking client '@' [@] for a blacklisted nickname.", e.connection.address, e.packet.uuid);
+        logger.info("Kicking client '@' [@] for a blacklisted nickname.", e.connection.address, e.packet.uuid);
         if (Config.message.get().isEmpty()) 
           e.connection.kick(Config.mode.get() == Config.WorkingMode.kick ? KickReason.kick : KickReason.banned, 
                             pInfo != null ? 30*1000 : 0);
@@ -111,8 +113,8 @@ public class Manager {
       events.get(ConnectPacketEvent.class, () -> new Seq<>(Cons.class)).insert(0, listener);
 
     } catch (RuntimeException err) {
-      Log.warn("Unable to get access of Events.class, because of a security manager!");
-      Log.warn("Falling back to a normal event...");
+      logger.warn("Unable to get access of Events.class, because of a security manager!");
+      logger.warn("Falling back to a normal event...");
 
       Events.on(ConnectPacketEvent.class, listener);
     }
@@ -161,7 +163,7 @@ public class Manager {
 
       Events.fire(new CheckingNicknameEvent(p.name, p.uuid(), p.con, null));
       if (!isValidName(p.name)) {
-        Log.info("Kicking player '@' [@] for a blacklisted nickname.", Strings.normalise(p.name), p.uuid());
+        logger.info("Kicking player '@' [@] for a blacklisted nickname.", Strings.normalise(p.name), p.uuid());
         if (Config.mode.get() == Config.WorkingMode.banip) netServer.admins.banPlayerIP(p.con.address);
         else if (Config.mode.get() == Config.WorkingMode.banuuid) netServer.admins.banPlayerID(p.uuid());
         if (Config.message.get().isEmpty()) 

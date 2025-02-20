@@ -1,12 +1,12 @@
 # Simple Blacklist
 Allows to filter player nicknames, which contain specific text or matches a regex.
 
-To control the blacklist, run the ``blacklist`` command. <br>
-And to see command usage, run ``blacklist help``.
+To control the blacklist, run the ``blacklist`` command. *(Use ``blacklist help`` to see command usage)* <br>
+The command is also available for admin players by using ``/blacklist``.
 
 > [!IMPORTANT]
 >
-> This plugin only works around player nicknames. 
+> This plugin only works around player nicknames. <br>
 > For IP/Subnet filtering, please use the [Anti-VPN-Service](github.com/xpdustry/Anti-VPN-Service) plugin instead.
 
 
